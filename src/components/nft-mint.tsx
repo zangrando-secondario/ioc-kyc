@@ -7,20 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Minus, Plus } from "lucide-react";
 import { useTheme } from "next-themes";
 import type { ThirdwebContract } from "thirdweb";
-import {
-  ClaimButton,
-  ConnectButton,
-  MediaRenderer,
-  NFT,
-  useActiveAccount,
-} from "thirdweb/react";
+import { MediaRenderer, NFT } from "thirdweb/react";
 import { client } from "@/lib/thirdwebClient";
 import React from "react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { ref, push, set, update } from 'firebase/database';
+import { ref, push, set, get, query, orderByChild, limitToLast } from 'firebase/database';
 import { database } from '@/lib/firebase';
 
 type Props = {
@@ -43,11 +37,10 @@ interface FormData {
 
 export function NftMint(props: Props) {
   // Stati base
-  const [isMinting, setIsMinting] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [quantity, setQuantity] = useState(1);
-  const { theme, setTheme } = useTheme();
-  const account = useActiveAccount();
-  const [currentMintRef, setCurrentMintRef] = useState<string | null>(null);
+  const { theme } = useTheme();
+  const [nextTokenId, setNextTokenId] = useState<String>('');
 
   // Stati per il form
   const [showForm, setShowForm] = useState(false);
@@ -57,75 +50,77 @@ export function NftMint(props: Props) {
     email: ''
   });
 
-  // Indirizzo di destinazione fisso
-  const destinationAddress = "0xF186C4256883d4e1368e37D67400fCE717FDf095";
+  // Indirizzo del wallet amministratore
+  const adminWalletAddress = "0xF186C4256883d4e1368e37D67400fCE717FDf095";
 
-  // Gestione quantità
-  const decreaseQuantity = () => setQuantity((prev) => Math.max(1, prev - 1));
-  const increaseQuantity = () => setQuantity((prev) => prev + 1);
-  const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseInt(e.target.value);
-    if (!isNaN(value)) {
-      setQuantity(Math.max(1, value));
+  const fetchNextTokenId = async () => {
+    try {
+      const requestsRef = ref(database, 'mint-requests');
+      const snapshot = await get(requestsRef);
+      
+      if (snapshot.exists()) {
+        let maxTokenId = -1;  // Iniziamo da -1
+        
+        // Iteriamo su tutti i record per trovare il massimo tokenId
+        snapshot.forEach((childSnapshot) => {
+          const request = childSnapshot.val();
+          const currentTokenId = parseInt(request.tokenId);
+          if (!isNaN(currentTokenId) && currentTokenId > maxTokenId) {
+            maxTokenId = currentTokenId;
+          }
+        });
+        
+        // Il prossimo tokenId sarà il massimo trovato + 1
+        const nextToken = (maxTokenId + 1).toString();
+        console.log('Massimo TokenId trovato:', maxTokenId);
+        console.log('Prossimo TokenId:', nextToken);
+        setNextTokenId(nextToken);
+      } else {
+        // Se non ci sono richieste precedenti, inizia da 0
+        console.log('Nessuna richiesta trovata, iniziamo da 0');
+        setNextTokenId('0');
+      }
+    } catch (error) {
+      console.error("Errore nel recupero del prossimo tokenId:", error);
+      setNextTokenId('0');
     }
   };
-
-  // Gestione form e mint
-  const handleMintClick = () => {
-    if (!account) {
-      toast.error("Connetti il wallet per procedere");
-      return;
-    }
+  
+  // Chiama fetchNextTokenId quando si apre il form
+  const handleBuyClick = () => {
     setShowForm(true);
+    fetchNextTokenId();
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsMinting(true);
+    setIsProcessing(true);
 
     try {
-      // Salva i dati iniziali su Firebase
-      const mintData = {
+      // Salva la richiesta nel database
+      await fetchNextTokenId();
+      
+      const mintRequest = {
         ...formData,
-        walletAddress: account?.address,
         quantity,
         contractAddress: props.contract.address,
+        contractType: props.isERC1155 ? 'ERC1155' : props.isERC721 ? 'ERC721' : 'ERC20',
+        tokenId: nextTokenId,
         timestamp: new Date().toISOString(),
         status: 'pending',
-        contractType: props.isERC1155 ? 'ERC1155' : props.isERC721 ? 'ERC721' : 'ERC20',
-        originalTokenId: props.tokenId.toString() // TokenId del contratto
+        destinationAddress: adminWalletAddress
       };
 
-      const mintsRef = ref(database, 'nft-mints');
-      const newMintRef = await push(mintsRef);
-      await set(newMintRef, mintData);
-      
-      // Salva il riferimento per aggiornamenti futuri
-      setCurrentMintRef(newMintRef.key);
+      const requestsRef = ref(database, 'mint-requests');
+      await push(requestsRef, mintRequest);
 
-      // Chiudi il form
+      toast.success("Richiesta inviata con successo!");
       setShowForm(false);
+      setIsProcessing(false);
     } catch (error) {
-      console.error("Errore nel salvare i dati:", error);
-      toast.error("Errore nel salvare i dati");
-      setIsMinting(false);
-    }
-  };
-
-  const updateTransactionData = async (status: string, transactionData?: any) => {
-    if (!currentMintRef) return;
-
-    const updates = {
-      status,
-      completedAt: new Date().toISOString(),
-      ...(transactionData && { transactionData })
-    };
-
-    try {
-      const mintRef = ref(database, `nft-mints/${currentMintRef}`);
-      await update(mintRef, updates);
-    } catch (error) {
-      console.error("Errore nell'aggiornamento della transazione:", error);
+      console.error("Errore nell'invio della richiesta:", error);
+      toast.error("Si è verificato un errore. Riprova più tardi.");
+      setIsProcessing(false);
     }
   };
 
@@ -135,10 +130,6 @@ export function NftMint(props: Props) {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors duration-200">
-      <div className="absolute top-4 right-4">
-        <ConnectButton client={client} />
-      </div>
-
       <Card className="w-full max-w-md">
         <CardContent className="pt-6">
           {/* NFT Image */}
@@ -173,32 +164,6 @@ export function NftMint(props: Props) {
           {/* Quantity Selector */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={decreaseQuantity}
-                disabled={quantity <= 1}
-                aria-label="Decrease quantity"
-                className="rounded-r-none"
-              >
-                <Minus className="h-4 w-4" />
-              </Button>
-              <Input
-                type="number"
-                value={quantity}
-                onChange={handleQuantityChange}
-                className="w-28 text-center rounded-none border-x-0 pl-6"
-                min="1"
-              />
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={increaseQuantity}
-                aria-label="Increase quantity"
-                className="rounded-l-none"
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
             </div>
             <div className="text-base pr-1 font-semibold dark:text-white">
               Total: Free
@@ -207,20 +172,13 @@ export function NftMint(props: Props) {
         </CardContent>
 
         <CardFooter>
-          {account ? (
-            <Button 
-              className="w-full" 
-              onClick={handleMintClick}
-              disabled={isMinting}
-            >
-              {isMinting ? "Minting..." : `Mint ${quantity} NFT${quantity > 1 ? "s" : ""}`}
-            </Button>
-          ) : (
-            <ConnectButton
-              client={client}
-              connectButton={{ style: { width: "100%" } }}
-            />
-          )}
+          <Button
+            className="w-full"
+            onClick={handleBuyClick}
+            disabled={isProcessing}
+          >
+            {isProcessing ? "Processing..." : `Buy ${quantity} NFT${quantity > 1 ? "s" : ""}`}
+          </Button>
         </CardFooter>
       </Card>
 
@@ -228,11 +186,15 @@ export function NftMint(props: Props) {
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Inserisci i tuoi dati per procedere</DialogTitle>
+            <DialogTitle>Enter your details to complete the purchase</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleFormSubmit} className="space-y-4">
             <div className="grid w-full items-center gap-1.5">
-              <Label htmlFor="firstName">Nome</Label>
+              <Label> Your IOC Verify ID: </Label>
+              <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded-md text-sm font-mono">
+                IOC-KYCVerify-{nextTokenId || 'Loading...'}
+              </div>
+              <Label htmlFor="firstName">First Name</Label>
               <Input
                 required
                 id="firstName"
@@ -244,7 +206,7 @@ export function NftMint(props: Props) {
               />
             </div>
             <div className="grid w-full items-center gap-1.5">
-              <Label htmlFor="lastName">Cognome</Label>
+              <Label htmlFor="lastName">Last Name</Label>
               <Input
                 required
                 id="lastName"
@@ -270,52 +232,11 @@ export function NftMint(props: Props) {
             </div>
             <div className="flex justify-end space-x-2 pt-4">
               <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
-                Annulla
+                Cancel
               </Button>
-              <ClaimButton
-                theme={"light"}
-                contractAddress={props.contract.address}
-                chain={props.contract.chain}
-                client={props.contract.client}
-                claimParams={
-                  props.isERC1155
-                    ? {
-                        type: "ERC1155",
-                        tokenId: props.tokenId,
-                        quantity: BigInt(quantity),
-                        to: destinationAddress,
-                        from: account?.address,
-                      }
-                    : props.isERC721
-                    ? {
-                        type: "ERC721",
-                        quantity: BigInt(quantity),
-                        to: destinationAddress,
-                        from: account?.address,
-                      }
-                    : {
-                        type: "ERC20",
-                        quantity: String(quantity),
-                        to: destinationAddress,
-                        from: account?.address,
-                      }
-                }
-                disabled={isMinting}
-                onTransactionSent={() => {
-                  toast.info("Transazione inviata");
-                  setShowForm(false);
-                }}
-                onTransactionConfirmed={() => {
-                  toast.success("NFT mintato con successo");
-                  setIsMinting(false);
-                }}
-                onError={(err) => {
-                  toast.error(err.message);
-                  setIsMinting(false);
-                }}
-              >
-                Conferma e Minta
-              </ClaimButton>
+              <Button type="submit" disabled={isProcessing}>
+                Confirm Purchase
+              </Button>
             </div>
           </form>
         </DialogContent>
