@@ -35,7 +35,7 @@ function NftMintContent() {
       pathName.includes('status=completed');
 
     if (!isVerified) {
-      window.location.href = "https://withpersona.com/verify?inquiry-template-id=itmpl_w9DM86kpX9Be1WsmxyXzK3uRQZy8&environment-id=env_ainVvNXJyHgaF3daHC9ycYGN";
+      window.location.href = "https://buy.stripe.com/bIYg2iaOlbjM6nmfYZ";
     }
   }, [searchParams, pathName]);
 
