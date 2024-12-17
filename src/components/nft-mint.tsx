@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Minus, Plus } from "lucide-react";
 import { useTheme } from "next-themes";
 import type { ThirdwebContract } from "thirdweb";
 import { MediaRenderer, NFT } from "thirdweb/react";
@@ -14,7 +13,7 @@ import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { ref, push, set, get, query, orderByChild, limitToLast } from 'firebase/database';
+import { ref, push, get } from 'firebase/database';
 import { database } from '@/lib/firebase';
 
 type Props = {
@@ -33,35 +32,32 @@ interface FormData {
   firstName: string;
   lastName: string;
   email: string;
+  phoneNumber: string;
 }
 
 export function NftMint(props: Props) {
-  // Stati base
   const [isProcessing, setIsProcessing] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const { theme } = useTheme();
   const [nextTokenId, setNextTokenId] = useState<String>('');
-
-  // Stati per il form
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     firstName: '',
     lastName: '',
-    email: ''
+    email: '',
+    phoneNumber: ''
   });
 
-  // Indirizzo del wallet amministratore
   const adminWalletAddress = "0xF186C4256883d4e1368e37D67400fCE717FDf095";
 
   const fetchNextTokenId = async () => {
     try {
       const requestsRef = ref(database, 'mint-requests');
       const snapshot = await get(requestsRef);
-      
+
       if (snapshot.exists()) {
-        let maxTokenId = -1;  // Iniziamo da -1
-        
-        // Iteriamo su tutti i record per trovare il massimo tokenId
+        let maxTokenId = -1;
+
         snapshot.forEach((childSnapshot) => {
           const request = childSnapshot.val();
           const currentTokenId = parseInt(request.tokenId);
@@ -69,14 +65,12 @@ export function NftMint(props: Props) {
             maxTokenId = currentTokenId;
           }
         });
-        
-        // Il prossimo tokenId sarà il massimo trovato + 1
+
         const nextToken = (maxTokenId + 1).toString();
         console.log('Massimo TokenId trovato:', maxTokenId);
         console.log('Prossimo TokenId:', nextToken);
         setNextTokenId(nextToken);
       } else {
-        // Se non ci sono richieste precedenti, inizia da 0
         console.log('Nessuna richiesta trovata, iniziamo da 0');
         setNextTokenId('0');
       }
@@ -85,8 +79,7 @@ export function NftMint(props: Props) {
       setNextTokenId('0');
     }
   };
-  
-  // Chiama fetchNextTokenId quando si apre il form
+
   const handleBuyClick = () => {
     setShowForm(true);
     fetchNextTokenId();
@@ -94,12 +87,15 @@ export function NftMint(props: Props) {
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phoneNumber) {
+      alert('All fields are required.');
+      return;
+    }
     setIsProcessing(true);
 
     try {
-      // Salva la richiesta nel database
       await fetchNextTokenId();
-      
+
       const mintRequest = {
         ...formData,
         quantity,
@@ -132,7 +128,6 @@ export function NftMint(props: Props) {
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors duration-200">
       <Card className="w-full max-w-md">
         <CardContent className="pt-6">
-          {/* NFT Image */}
           <div className="aspect-square overflow-hidden rounded-lg mb-4 relative">
             {props.isERC1155 ? (
               <NFT contract={props.contract} tokenId={props.tokenId}>
@@ -153,7 +148,6 @@ export function NftMint(props: Props) {
             </div>
           </div>
 
-          {/* NFT Details */}
           <h2 className="text-2xl font-bold mb-2 dark:text-white">
             {props.displayName}
           </h2>
@@ -161,10 +155,7 @@ export function NftMint(props: Props) {
             {props.description}
           </p>
 
-          {/* Quantity Selector */}
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center">
-            </div>
             <div className="text-base pr-1 font-semibold dark:text-white">
               Total: Free
             </div>
@@ -182,7 +173,6 @@ export function NftMint(props: Props) {
         </CardFooter>
       </Card>
 
-      {/* Form Dialog */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent>
           <DialogHeader>
@@ -224,9 +214,26 @@ export function NftMint(props: Props) {
                 type="email"
                 id="email"
                 value={formData.email}
+                pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
+                title="Please enter a valid email address"
                 onChange={(e) => setFormData(prev => ({
                   ...prev,
                   email: e.target.value
+                }))}
+              />
+            </div>
+            <div className="grid w-full items-center gap-1.5">
+              <Label htmlFor="phoneNumber">Phone number (also prefix)</Label>
+              <Input
+                required
+                type="tel"
+                id="phoneNumber"
+                value={formData.phoneNumber}
+                pattern="^\+?[0-9\s\-]+$"
+                title="Please enter a valid phone number"
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
+                  phoneNumber: e.target.value
                 }))}
               />
             </div>
