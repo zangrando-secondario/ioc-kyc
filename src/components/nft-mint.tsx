@@ -180,9 +180,9 @@ export function NftMint(props: Props) {
           </DialogHeader>
           <form onSubmit={handleFormSubmit} className="space-y-4">
             <div className="grid w-full items-center gap-1.5">
-              <Label> Your IOC Verify ID: </Label>
+              <Label> Your RDF Verify ID: </Label>
               <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded-md text-sm font-mono">
-                IOC-KYCVerify-{nextTokenId || 'Loading...'}
+                RDF-KYCVerify-{nextTokenId || 'Loading...'}
               </div>
               <Label htmlFor="firstName">First Name</Label>
               <Input
