@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -113,6 +111,7 @@ export function NftMint(props: Props) {
       toast.success("Richiesta inviata con successo!");
       setShowForm(false);
       setIsProcessing(false);
+      window.location.href = "https://rinascitadellafenice.systeme.io/grazie-iscrizione";
     } catch (error) {
       console.error("Errore nell'invio della richiesta:", error);
       toast.error("Si è verificato un errore. Riprova più tardi.");
