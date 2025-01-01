@@ -1,18 +1,18 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Button } from "../../ui/button";
+import { Card, CardContent, CardFooter } from "../../ui/card";
+import { Input } from "../../ui/input";
 import { useTheme } from "next-themes";
 import type { ThirdwebContract } from "thirdweb";
 import { MediaRenderer, NFT } from "thirdweb/react";
-import { client } from "@/lib/thirdwebClient";
+import { client } from "../../../hooks/lib/thirdwebClient";
 import React from "react";
 import { toast } from "sonner";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
+import { Skeleton } from "../../ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../ui/dialog";
+import { Label } from "../../ui/label";
 import { ref, push, get } from 'firebase/database';
-import { database } from '@/lib/firebase';
+import { database } from '../../../hooks/lib/firebase';
 
 type Props = {
   contract: ThirdwebContract;

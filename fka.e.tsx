@@ -1,12 +1,12 @@
 "use client";
 
-import { NftMint } from "@/components/nft-mint";
+import { NftMint } from "./components/nft/form/nft-mint";
 import {
   defaultChainId,
   defaultNftContractAddress,
   defaultTokenId,
-} from "@/lib/constants";
-import { client } from "@/lib/thirdwebClient";
+} from "./hooks/lib/constants";
+import { client } from "./hooks/lib/thirdwebClient";
 import { defineChain, getContract, toTokens } from "thirdweb";
 import { getContractMetadata } from "thirdweb/extensions/common";
 import {
