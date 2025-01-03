@@ -126,7 +126,7 @@ const Dashboard: React.FC = () => {
     return <div>Loading...</div>;
   }
 
-  if (address?.address !== '0x2FBF5571E6e01db1A5b17E4011f7Af47d4777Ab9') {
+  if (address?.address !== '0x2FBF5571E6e01db1A5b17E4011f7Af47d4777Ab9' && address?.address !== '0xd48b3007354fB5BdBEaC3c2aa435983b1cEF73D2') {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <ConnectButton 
