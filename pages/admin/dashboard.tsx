@@ -11,6 +11,8 @@ interface Person {
   name: string;
   surname: string;
   email: string;
+  phoneNumber?: string;
+  status?: string;
 }
 
 interface NFTData {
@@ -39,27 +41,49 @@ export default function Dashboard() {
       const data = snapshot.val() || {};
       const nftEntries = Object.values(data) as NFTData[];
       setNftData(nftEntries);
-      
+
       const allPeople = new Map<string, Person>();
-      
-      staticPeople.forEach(person => 
+
+      staticPeople.forEach(person =>
         allPeople.set(person.email.toLowerCase(), person)
       );
-      
+
       nftEntries.forEach(nft => {
-        if (!allPeople.has(nft.email.toLowerCase())) {
-          allPeople.set(nft.email.toLowerCase(), {
+        const lowerEmail = nft.email.toLowerCase();
+        const existingPerson = allPeople.get(lowerEmail);
+
+        let phoneNumber = nft.phoneNumber;
+        if (phoneNumber) {
+          // Rimuove tutti gli spazi dal numero
+          phoneNumber = phoneNumber.replace(/\s+/g, '');
+
+          // Aggiunge il prefisso +39 se non c'è già un prefisso
+          if (!phoneNumber.startsWith('+')) {
+            phoneNumber = '+39' + phoneNumber;
+          }
+        }
+
+
+        if (existingPerson) {
+          allPeople.set(lowerEmail, {
+            ...existingPerson,
+            phoneNumber: phoneNumber || existingPerson.phoneNumber
+          });
+        } else {
+          allPeople.set(lowerEmail, {
             name: nft.firstName.trim(),
             surname: nft.lastName.trim(),
-            email: nft.email.trim()
+            email: nft.email.trim(),
+            phoneNumber: phoneNumber || '',
+            status: nft.status
           });
         }
       });
-      
+
       setPeople(Array.from(allPeople.values()));
       setLoading(false);
     });
-  }, []);
+  }, [address]);
 
   const getStatus = (person: Person) => {
     const nft = nftData.find(nftRecord => {
@@ -67,8 +91,8 @@ export default function Dashboard() {
       if (emailMatch) return true;
 
       const nameMatch = person.name.toLowerCase().trim() === nftRecord.firstName.toLowerCase().trim() &&
-                       person.surname.toLowerCase().trim() === nftRecord.lastName.toLowerCase().trim().replace(/\s+/g, '');
-      
+        person.surname.toLowerCase().trim() === nftRecord.lastName.toLowerCase().trim().replace(/\s+/g, '');
+
       const specialCases: { [key: string]: string } = {
         'gianl@tiscali.it': nftRecord.tokenId === '9' ? nftRecord.tokenId : '',
         'coincide3@gmail.com': nftRecord.email === 'antonio.concina@gmail.com' ? nftRecord.tokenId : '',
@@ -134,6 +158,7 @@ export default function Dashboard() {
                     <th className="h-12 px-4 text-left align-middle font-medium text-gray-500 border-b">Name</th>
                     <th className="h-12 px-4 text-left align-middle font-medium text-gray-500 border-b">Surname</th>
                     <th className="h-12 px-4 text-left align-middle font-medium text-gray-500 border-b">Email</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium text-gray-500 border-b">Phone</th>
                     <th className="h-12 px-4 text-left align-middle font-medium text-gray-500 border-b">Status</th>
                   </tr>
                 </thead>
@@ -143,6 +168,7 @@ export default function Dashboard() {
                       <td className="p-4">{person.name}</td>
                       <td className="p-4">{person.surname}</td>
                       <td className="p-4">{person.email}</td>
+                      <td className="p-4">{person.phoneNumber || '-'}</td>
                       <td className="p-4">{getStatus(person)}</td>
                     </tr>
                   ))}
