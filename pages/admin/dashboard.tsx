@@ -89,10 +89,10 @@ export default function Dashboard() {
     const nft = nftData.find(nftRecord => {
       const emailMatch = person.email.toLowerCase() === nftRecord.email.toLowerCase();
       if (emailMatch) return true;
-
+  
       const nameMatch = person.name.toLowerCase().trim() === nftRecord.firstName.toLowerCase().trim() &&
         person.surname.toLowerCase().trim() === nftRecord.lastName.toLowerCase().trim().replace(/\s+/g, '');
-
+    
       const specialCases: { [key: string]: string } = {
         'gianl@tiscali.it': nftRecord.tokenId === '9' ? nftRecord.tokenId : '',
         'coincide3@gmail.com': nftRecord.email === 'antonio.concina@gmail.com' ? nftRecord.tokenId : '',
@@ -106,7 +106,6 @@ export default function Dashboard() {
       return nameMatch;
     });
 
-    if (nft) return <span className="text-green-500">Nft claimed (Token ID: {nft.tokenId})</span>;
 
     const statusMap = {
       paid: [
@@ -121,14 +120,44 @@ export default function Dashboard() {
         'terrytimeo@gmail.com'
       ]
     };
+    const statusSpan = nft ? 
+      <span className="text-green-500">Nft claimed (Token ID: {nft.tokenId})</span> :
+      statusMap.paid.includes(person.email.toLowerCase()) ?
+        <span className="text-yellow-500">Paid (No kyc)</span> :
+        statusMap.kyc.includes(person.email.toLowerCase()) ?
+          <span className="text-yellow-500">Kyc finished NOT Nft</span> :
+          <span className="text-red-500">Nft not claimed</span>;
 
     const email = person.email.toLowerCase();
-    if (statusMap.paid.includes(email)) return <span className="text-yellow-500">Paid (No kyc)</span>;
-    if (statusMap.kyc.includes(email)) return <span className="text-yellow-500">Kyc finished NOT Nft</span>;
-    return <span className="text-red-500">Nft not claimed</span>;
+    return (
+      <div className="flex items-center gap-2">
+        {statusSpan}
+        {nft && (
+          <button 
+            onClick={() => alert(`Timestamp: ${formatTimestamp(nft.timestamp)}`)}
+            className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded"
+            title="Show timestamp"
+          >
+            🕒
+          </button>
+        )}
+      </div>
+    );  
   };
 
+
   if (loading) return <div>Loading...</div>;
+
+  const formatTimestamp = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+  
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
+  };
 
   const isAuthorized = [
     '0x2FBF5571E6e01db1A5b17E4011f7Af47d4777Ab9',
@@ -165,12 +194,12 @@ export default function Dashboard() {
                 <tbody>
                   {people.map(person => (
                     <tr key={person.email} className="border-b border-gray-200 last:border-0 hover:bg-gray-50">
-                      <td className="p-4">{person.name}</td>
-                      <td className="p-4">{person.surname}</td>
-                      <td className="p-4">{person.email}</td>
-                      <td className="p-4">{person.phoneNumber || '-'}</td>
-                      <td className="p-4">{getStatus(person)}</td>
-                    </tr>
+                    <td className="p-4">{person.name}</td>
+                    <td className="p-4">{person.surname}</td>
+                    <td className="p-4">{person.email}</td>
+                    <td className="p-4">{person.phoneNumber || '-'}</td>
+                    <td className="p-4">{getStatus(person)}</td>
+                  </tr>
                   ))}
                 </tbody>
               </table>
