@@ -161,7 +161,8 @@ export default function Dashboard() {
 
   const isAuthorized = [
     '0x2FBF5571E6e01db1A5b17E4011f7Af47d4777Ab9',
-    '0xd48b3007354fB5BdBEaC3c2aa435983b1cEF73D2'
+    '0xd48b3007354fB5BdBEaC3c2aa435983b1cEF73D2',
+    '0x991779Fce61e01c4A46b04272D3aB6EB363ae8dA'
   ].includes(address?.address || '');
 
   if (!isAuthorized) {
